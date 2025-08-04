@@ -1,5 +1,7 @@
+com\translate\App.class
 com\translate\MainApp.class
 com\translate\service\TranslationService.class
-com\translate\App.class
+com\translate\controller\TranslationController.class
+com\translate\service\SpeechTranslationService.class
 com\translate\client\AwsTranslateClient.class
 com\translate\model\TranslationRequest.class
