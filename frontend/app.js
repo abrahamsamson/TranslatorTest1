@@ -8,11 +8,24 @@ const startSessionBtn = document.getElementById("startSessionBtn");
 const joinSessionBtn = document.getElementById("joinSessionBtn");
 const sessionCodeDisplay = document.getElementById("sessionCode");
 const recognizedDiv = document.getElementById("recognizedText");
-const translatedDiv = document.getElementById("translatedText");
 const languageSelect = document.getElementById("languageSelect");
 const presenterControls = document.getElementById("presenterControls");
 const viewerControls = document.getElementById("viewerControls");
 const joinCodeInput = document.getElementById("joinCode");
+const recognizedHistory = document.getElementById("recognizedHistory");
+const translatedHistory = document.getElementById("translatedHistory");
+
+// Create a div for translated text if not present
+let translatedDiv = document.getElementById("translatedText");
+if (!translatedDiv) {
+  translatedDiv = document.createElement("div");
+  translatedDiv.id = "translatedText";
+  translatedDiv.style = "min-height: 30px; background: #e0ffe7; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align:left;";
+  recognizedDiv.parentNode.insertBefore(translatedDiv, recognizedHistory);
+}
+
+let recognizedLines = [];
+let translatedLines = [];
 
 let sessionCode = null;
 
@@ -75,16 +88,36 @@ function connectStomp() {
     stompClient.subscribe('/topic/translated', function(message) {
       try {
         const data = JSON.parse(message.body);
-        if (data.translatedText) {
-          translatedDiv.innerText = data.translatedText;
-        }
+
+        // Update current speech and history
         if (data.originalText) {
           recognizedDiv.innerText = data.originalText;
+          recognizedLines.push(data.originalText);
+          updateHistory(recognizedHistory, recognizedLines);
+        }
+
+        // Update translated text and history
+        if (data.translatedText) {
+          translatedDiv.innerText = data.translatedText;
+          translatedLines.push(data.translatedText);
+          updateHistory(translatedHistory, translatedLines);
         }
       } catch (e) {
         translatedDiv.innerText = message.body;
+        translatedLines.push(message.body);
+        updateHistory(translatedHistory, translatedLines);
       }
     });
+  });
+}
+
+// Update transcript history lists
+function updateHistory(listElement, linesArray) {
+  listElement.innerHTML = "";
+  linesArray.forEach(line => {
+    const li = document.createElement("li");
+    li.textContent = line;
+    listElement.appendChild(li);
   });
 }
 
@@ -134,8 +167,11 @@ function startContinuousRecognition() {
 
     recognizedDiv.innerText = finalTranscript || interimTranscript;
 
+    // Only add final results to history and send for translation
     if (finalTranscript && stompClient && stompClient.connected) {
       sendTranslate(finalTranscript, languageSelect.value);
+      recognizedLines.push(finalTranscript);
+      updateHistory(recognizedHistory, recognizedLines);
     }
   };
 

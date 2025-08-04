@@ -36,15 +36,18 @@
       </select>
     </div>
 
-    <h3>Original Speech:</h3>
-    <div id="recognizedText" style="min-height: 50px; background: #f0f0f0; padding: 10px; border-radius: 5px;"></div>
+    <h3>Current Speech:</h3>
+    <div id="recognizedText" style="min-height: 30px; background: #fffbe7; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align:left;"></div>
 
-    <h3>Translated Text:</h3>
-    <div id="translatedText" style="min-height: 50px; background: #e0f7fa; padding: 10px; border-radius: 5px; margin-bottom: 20px;"></div>
+    <h3>Original Speech History:</h3>
+    <ul id="recognizedHistory" style="min-height: 50px; background: #f0f0f0; padding: 10px; border-radius: 5px; text-align:left;"></ul>
+
+    <h3>Translated Text History:</h3>
+    <ul id="translatedHistory" style="min-height: 50px; background: #e0f7fa; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align:left;"></ul>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
   <script src="app.js"></script>
 </body>
-</html>
+</html> 
