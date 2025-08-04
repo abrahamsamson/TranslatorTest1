@@ -1,36 +1,33 @@
 package com.translate.websocket;
 
+import com.translate.dto.TranslateMessage;
 import com.translate.service.TranslationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
-
-import java.util.Map;
 
 @Controller
 public class TranslationWebSocketController {
 
-    @Autowired
-    private TranslationService translationService;
+    private final TranslationService translationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired
-    private SimpMessagingTemplate messagingTemplate;
+    public TranslationWebSocketController(TranslationService translationService,
+            SimpMessagingTemplate messagingTemplate) {
+        this.translationService = translationService;
+        this.messagingTemplate = messagingTemplate;
+    }
 
-    /**
-     * Presenter sends text via WebSocket.
-     * Message body: { "sessionCode": "ABC123", "text": "Hello", "targetLang": "es" }
-     */
     @MessageMapping("/translate")
-    public void handleTranslation(Map<String, String> message) {
-        String sessionCode = message.get("sessionCode");
-        String text = message.get("text");
-        String targetLang = message.get("targetLang");
+    public void handleTranslateMessage(@Payload TranslateMessage message) {
+        String text = message.getText();
+        String sourceLang = message.getSourceLang() != null ? message.getSourceLang() : "auto";
+        String targetLang = message.getTargetLang();
 
-        String translatedText = translationService.translate(text, targetLang);
-
-        messagingTemplate.convertAndSend("/topic/session/" + sessionCode,
-                Map.of("originalText", text, "translatedText", translatedText));
+        String translatedText = translationService.translate(text, sourceLang, targetLang);
+        messagingTemplate.convertAndSend("/topic/translated", translatedText);
     }
 }

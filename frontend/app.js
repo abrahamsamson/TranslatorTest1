@@ -1,7 +1,6 @@
 let recognition;
 let isRecognizing = false;
-let socket;
-let sessionCode = null;
+let stompClient = null;
 
 // DOM elements
 const presenterModeCheckbox = document.getElementById("presenterMode");
@@ -14,6 +13,8 @@ const languageSelect = document.getElementById("languageSelect");
 const presenterControls = document.getElementById("presenterControls");
 const viewerControls = document.getElementById("viewerControls");
 const joinCodeInput = document.getElementById("joinCode");
+
+let sessionCode = null;
 
 // Toggle presenter/viewer controls visibility
 presenterModeCheckbox.addEventListener("change", () => {
@@ -41,7 +42,7 @@ startSessionBtn.addEventListener("click", async () => {
     sessionCode = data.sessionCode;
     sessionCodeDisplay.innerText = sessionCode;
 
-    connectWebSocket(sessionCode);
+    connectStomp();
     startContinuousRecognition();
   } catch (err) {
     alert("Error creating session: " + err.message);
@@ -59,44 +60,42 @@ joinSessionBtn.addEventListener("click", () => {
 
   sessionCode = code;
   sessionCodeDisplay.innerText = sessionCode;
-  connectWebSocket(sessionCode);
+  connectStomp();
 });
 
-// Connect to WebSocket server
-function connectWebSocket(code) {
-  if (socket) {
-    socket.close();
+// Connect to STOMP WebSocket server
+function connectStomp() {
+  const socket = new SockJS('http://localhost:8080/ws');
+  stompClient = Stomp.over(socket);
+
+  stompClient.connect({}, function(frame) {
+    console.log('Connected: ' + frame);
+
+    // Subscribe to translation topic
+    stompClient.subscribe('/topic/translated', function(message) {
+      try {
+        const data = JSON.parse(message.body);
+        if (data.translatedText) {
+          translatedDiv.innerText = data.translatedText;
+        }
+        if (data.originalText) {
+          recognizedDiv.innerText = data.originalText;
+        }
+      } catch (e) {
+        translatedDiv.innerText = message.body;
+      }
+    });
+  });
+}
+
+// Send translation request via STOMP
+function sendTranslate(text, targetLang) {
+  if (stompClient && stompClient.connected) {
+    stompClient.send("/app/translate", {}, JSON.stringify({
+      text: text,
+      targetLang: targetLang
+    }));
   }
-
-  socket = new WebSocket(`ws://localhost:8080/ws/session/${code}`);
-
-  socket.onopen = () => {
-    console.log("WebSocket connected to session:", code);
-    translatedDiv.innerText = "";
-    recognizedDiv.innerText = "";
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.translatedText) {
-        translatedDiv.innerText = data.translatedText;
-      }
-      if (data.originalText) {
-        recognizedDiv.innerText = data.originalText;
-      }
-    } catch (e) {
-      console.error("Error parsing WebSocket message", e);
-    }
-  };
-
-  socket.onerror = (event) => {
-    console.error("WebSocket error", event);
-  };
-
-  socket.onclose = () => {
-    console.log("WebSocket closed");
-  };
 }
 
 // Start continuous speech recognition (Presenter only)
@@ -135,12 +134,8 @@ function startContinuousRecognition() {
 
     recognizedDiv.innerText = finalTranscript || interimTranscript;
 
-    if (finalTranscript && socket && socket.readyState === WebSocket.OPEN) {
-      const payload = {
-        text: finalTranscript,
-        targetLang: languageSelect.value,
-      };
-      socket.send(JSON.stringify(payload));
+    if (finalTranscript && stompClient && stompClient.connected) {
+      sendTranslate(finalTranscript, languageSelect.value);
     }
   };
 

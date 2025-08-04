@@ -12,7 +12,6 @@ public class TranslationController {
 
     private final TranslationService translationService;
 
-    // Inject TranslationService here — only what you use
     public TranslationController(TranslationService translationService) {
         this.translationService = translationService;
     }
@@ -22,7 +21,9 @@ public class TranslationController {
         String text = request.get("text");
         String sourceLang = request.getOrDefault("sourceLang", "auto");
         String targetLang = request.get("targetLang");
+
         String translatedText = translationService.translate(text, sourceLang, targetLang);
+
         return Map.of("translatedText", translatedText);
     }
 }
