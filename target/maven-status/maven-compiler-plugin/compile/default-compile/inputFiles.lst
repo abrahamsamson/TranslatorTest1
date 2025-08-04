@@ -1,7 +1,11 @@
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\App.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\client\AwsTranslateClient.java
+D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\config\WebSocketConfig.java
+D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\controller\SessionController.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\controller\TranslationController.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\MainApp.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\model\TranslationRequest.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\service\SpeechTranslationService.java
 D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\service\TranslationService.java
+D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\WebConfig.java
+D:\Projects\AWSSpeechTranslator\src\main\java\com\translate\websocket\TranslationWebSocketController.java

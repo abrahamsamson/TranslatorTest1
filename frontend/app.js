@@ -1,76 +1,158 @@
-const micBtn = document.getElementById('micBtn');
-const inputText = document.getElementById('inputText');
-const translateBtn = document.getElementById('translateBtn');
-const languageSelect = document.getElementById('languageSelect');
-const translatedDiv = document.getElementById('translatedText');
-
 let recognition;
-let recognizing = false;
+let isRecognizing = false;
+let socket;
+let sessionCode = null;
 
-// Check if browser supports SpeechRecognition
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
+// DOM elements
+const presenterModeCheckbox = document.getElementById("presenterMode");
+const startSessionBtn = document.getElementById("startSessionBtn");
+const joinSessionBtn = document.getElementById("joinSessionBtn");
+const sessionCodeDisplay = document.getElementById("sessionCode");
+const recognizedDiv = document.getElementById("recognizedText");
+const translatedDiv = document.getElementById("translatedText");
+const languageSelect = document.getElementById("languageSelect");
+const presenterControls = document.getElementById("presenterControls");
+const viewerControls = document.getElementById("viewerControls");
+const joinCodeInput = document.getElementById("joinCode");
 
-  recognition.onstart = () => {
-    recognizing = true;
-    micBtn.innerText = '🎙️ Listening... Click to stop';
-  };
+// Toggle presenter/viewer controls visibility
+presenterModeCheckbox.addEventListener("change", () => {
+  if (presenterModeCheckbox.checked) {
+    presenterControls.style.display = "block";
+    viewerControls.style.display = "none";
+  } else {
+    presenterControls.style.display = "none";
+    viewerControls.style.display = "block";
+  }
+});
 
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    inputText.value = transcript;
-  };
+// Start session as presenter
+startSessionBtn.addEventListener("click", async () => {
+  try {
+    const response = await fetch("http://localhost:8080/create-session", {
+      method: "POST",
+    });
 
-  recognition.onerror = (event) => {
-    alert('Speech recognition error: ' + event.error);
-  };
-
-  recognition.onend = () => {
-    recognizing = false;
-    micBtn.innerText = '🎤';
-  };
-
-  micBtn.addEventListener('click', () => {
-    if (recognizing) {
-      recognition.stop();
-      micBtn.innerText = '🎤';
-    } else {
-      recognition.start();
+    if (!response.ok) {
+      throw new Error("Failed to create session");
     }
-  });
-} else {
-  micBtn.disabled = true;
-  micBtn.title = 'Speech recognition not supported in this browser.';
-  micBtn.style.opacity = 0.5;
-}
 
-// Translation button click
-translateBtn.addEventListener('click', () => {
-  const text = inputText.value.trim();
-  const targetLang = languageSelect.value;
+    const data = await response.json();
+    sessionCode = data.sessionCode;
+    sessionCodeDisplay.innerText = sessionCode;
 
-  if (!text) {
-    alert("Please enter some text to translate.");
+    connectWebSocket(sessionCode);
+    startContinuousRecognition();
+  } catch (err) {
+    alert("Error creating session: " + err.message);
+    console.error(err);
+  }
+});
+
+// Join session as viewer
+joinSessionBtn.addEventListener("click", () => {
+  const code = joinCodeInput.value.trim();
+  if (!code) {
+    alert("Please enter a session code to join.");
     return;
   }
 
-  fetch('http://localhost:8080/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, targetLang })
-  })
-    .then(response => {
-      if (!response.ok) throw new Error('Network response not ok');
-      return response.json();
-    })
-    .then(data => {
-      translatedDiv.innerText = data.translatedText || 'No translation returned';
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      translatedDiv.innerText = 'Translation failed.';
-    });
+  sessionCode = code;
+  sessionCodeDisplay.innerText = sessionCode;
+  connectWebSocket(sessionCode);
 });
+
+// Connect to WebSocket server
+function connectWebSocket(code) {
+  if (socket) {
+    socket.close();
+  }
+
+  socket = new WebSocket(`ws://localhost:8080/ws/session/${code}`);
+
+  socket.onopen = () => {
+    console.log("WebSocket connected to session:", code);
+    translatedDiv.innerText = "";
+    recognizedDiv.innerText = "";
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.translatedText) {
+        translatedDiv.innerText = data.translatedText;
+      }
+      if (data.originalText) {
+        recognizedDiv.innerText = data.originalText;
+      }
+    } catch (e) {
+      console.error("Error parsing WebSocket message", e);
+    }
+  };
+
+  socket.onerror = (event) => {
+    console.error("WebSocket error", event);
+  };
+
+  socket.onclose = () => {
+    console.log("WebSocket closed");
+  };
+}
+
+// Start continuous speech recognition (Presenter only)
+function startContinuousRecognition() {
+  if (!("webkitSpeechRecognition" in window)) {
+    alert("Your browser does not support Speech Recognition API.");
+    return;
+  }
+
+  if (recognition) {
+    recognition.stop();
+    recognition = null;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  recognition.onstart = () => {
+    isRecognizing = true;
+    console.log("Speech recognition started...");
+  };
+
+  recognition.onresult = (event) => {
+    let interimTranscript = "";
+    let finalTranscript = "";
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    recognizedDiv.innerText = finalTranscript || interimTranscript;
+
+    if (finalTranscript && socket && socket.readyState === WebSocket.OPEN) {
+      const payload = {
+        text: finalTranscript,
+        targetLang: languageSelect.value,
+      };
+      socket.send(JSON.stringify(payload));
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error", event.error);
+  };
+
+  recognition.onend = () => {
+    if (isRecognizing) {
+      recognition.start(); // Restart recognition automatically for continuous mode
+    }
+  };
+
+  recognition.start();
+}

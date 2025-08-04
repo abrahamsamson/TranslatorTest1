@@ -41,6 +41,20 @@
             <version>${spring.boot.version}</version>
         </dependency>
 
+        <!-- Spring Boot Starter WebSocket -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Starter (optional) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <version>${spring.boot.version}</version>
+        </dependency>
+
         <!-- Logging: Logback for SLF4J -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
